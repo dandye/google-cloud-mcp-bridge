@@ -20,6 +20,10 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 import google.auth
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.genai import types
+from google.adk.features import FeatureName, override_feature_enabled
+
+# Disable JSON_SCHEMA_FOR_FUNC_DECL to prevent Vertex AI schema flattening limits
+override_feature_enabled(FeatureName.JSON_SCHEMA_FOR_FUNC_DECL, False)
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +95,9 @@ def load_instructions() -> str:
     )
 
 
+_tool_filter_raw = os.getenv("MCP_TOOL_FILTER", "").strip()
+TOOL_FILTER = [t.strip() for t in _tool_filter_raw.split(",") if t.strip()] or None
+
 # Define the ADK Agent
 # ADK automatically handles tool discovery (tools/list), parameter mapping,
 # function calling execution, and response synthesis.
@@ -102,6 +109,7 @@ root_agent = Agent(
         McpToolset(
             connection_params=StreamableHTTPConnectionParams(url=MCP_URL),
             header_provider=get_auth_headers,
+            tool_filter=TOOL_FILTER,
         )
     ],
 )
@@ -296,13 +304,20 @@ async def reasoning_engine_query(request: FastAPIRequest):
         pass
 
     agent_response_text = ""
-    async for event in runner.run_async(
-        user_id=user_id,
-        session_id=session_id,
-        new_message=content,
-    ):
-        if event.is_final_response():
-            if event.content and event.content.parts:
-                agent_response_text = event.content.parts[0].text
+    try:
+        async for event in runner.run_async(
+            user_id=user_id,
+            session_id=session_id,
+            new_message=content,
+        ):
+            if event.is_final_response():
+                if event.content and event.content.parts:
+                    agent_response_text = event.content.parts[0].text
+    except Exception as exc:
+        logger.error(f"Error during reasoning engine query: {exc}", exc_info=True)
+        return JSONResponse(
+            content={"error": str(exc), "output": f"Execution error: {exc}"},
+            status_code=500,
+        )
 
     return JSONResponse(content={"output": agent_response_text})

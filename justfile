@@ -57,6 +57,10 @@ install:
 test *args="":
     {{ python }} -m pytest {{ args }}
 
+# Run integration tests against deployed Agent Engine
+integration-test *args="":
+    {{ python }} -m pytest -v -m integration tests/ {{ args }}
+
 # Run tests with coverage report
 test-cov:
     {{ python }} -m pytest --cov=gcp_agent --cov-report=term-missing --cov-report=html
