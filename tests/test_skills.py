@@ -189,14 +189,34 @@ def test_atomic_runbooks_exist():
         assert skill_path.exists(), f"Expected atomic runbook missing: {skill_path}"
 
 
+def test_incident_playbooks_exist():
+    """Verify all 4 incident response playbooks exist in skills/secops/playbooks/."""
+    expected_playbooks = [
+        "compromised-account",
+        "ransomware-response",
+        "phishing-response",
+        "investigation-report",
+    ]
+    for playbook in expected_playbooks:
+        skill_path = SKILLS_DIR / "playbooks" / playbook / "SKILL.md"
+        assert skill_path.exists(), f"Expected incident playbook missing: {skill_path}"
+
+
 def test_recursive_skill_discovery():
-    """Verify recursive discovery finds root, imported, and atomic runbook skills."""
+    """Verify recursive discovery finds root, imported, runbook, and playbook skills."""
     discovered = get_skill_md_files()
     assert SKILLS_DIR / "SKILL.md" in discovered
     for skill_name in ["ioc-enrichment", "malware-triage", "chatops"]:
         assert SKILLS_DIR / skill_name / "SKILL.md" in discovered
     for runbook in ["domain", "ip-address", "hash", "url", "user"]:
         assert SKILLS_DIR / "runbooks" / runbook / "SKILL.md" in discovered
+    for playbook in [
+        "compromised-account",
+        "ransomware-response",
+        "phishing-response",
+        "investigation-report",
+    ]:
+        assert SKILLS_DIR / "playbooks" / playbook / "SKILL.md" in discovered
 
 
 @pytest.mark.parametrize(
