@@ -18,8 +18,9 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-${GCP_PROJECT_ID:-}}"
 REGION="${GOOGLE_CLOUD_REGION:-${GCP_REGION:-us-central1}}"
-SERVICE_NAME="${SERVICE_NAME:-gcp-recommender-agent}"
-SA_NAME="mcp-bridge-agent-sa"
+ACTIVE_MCP_SERVICE="${ACTIVE_MCP_SERVICE:-secops}"
+SERVICE_NAME="${SERVICE_NAME:-gcp-${ACTIVE_MCP_SERVICE}-agent}"
+SA_NAME="${SA_NAME:-chronicle-mcp-sa}"
 
 if [[ -z "$PROJECT_ID" ]]; then
   echo "ERROR: Google Cloud Project ID is not set."
@@ -29,7 +30,7 @@ fi
 
 echo "=================================================================="
 echo " Starting Agent Runtime Deployment: $SERVICE_NAME"
-echo " Project ID : $PROJECT_ID | Region: $REGION"
+echo " Project ID : $PROJECT_ID | Region: $REGION | Service: $ACTIVE_MCP_SERVICE"
 echo "=================================================================="
 
 # Check CLI prerequisites
@@ -47,12 +48,18 @@ SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 # ------------------------------------------------------------------------------
 echo ""
 echo "--> Step 1: Enabling required Google Cloud APIs..."
-gcloud services enable \
-  aiplatform.googleapis.com \
-  agentregistry.googleapis.com \
-  recommender.googleapis.com \
-  discoveryengine.googleapis.com \
-  --project="$PROJECT_ID"
+REQUIRED_APIS=(
+  "aiplatform.googleapis.com"
+  "agentregistry.googleapis.com"
+  "discoveryengine.googleapis.com"
+)
+if [[ "$ACTIVE_MCP_SERVICE" == "secops" ]]; then
+  REQUIRED_APIS+=("chronicle.googleapis.com")
+else
+  REQUIRED_APIS+=("recommender.googleapis.com")
+fi
+
+gcloud services enable "${REQUIRED_APIS[@]}" --project="$PROJECT_ID"
 
 echo "    [OK] APIs enabled successfully."
 
@@ -79,27 +86,35 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --condition=None \
   --quiet
 
-# 2. roles/recommender.viewer: Required to read recommendations from Recommender API
-echo "    Granting roles/recommender.viewer..."
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/recommender.viewer" \
-  --condition=None \
-  --quiet
+# 2. Service-specific viewer roles
+if [[ "$ACTIVE_MCP_SERVICE" == "secops" ]]; then
+  echo "    Granting roles/chronicle.viewer..."
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="roles/chronicle.viewer" \
+    --condition=None \
+    --quiet
+else
+  echo "    Granting roles/recommender.viewer..."
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="roles/recommender.viewer" \
+    --condition=None \
+    --quiet
+
+  echo "    Granting roles/compute.viewer..."
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="roles/compute.viewer" \
+    --condition=None \
+    --quiet
+fi
 
 # 3. roles/aiplatform.user: Required for the agent to call Vertex AI / Gemini models
 echo "    Granting roles/aiplatform.user..."
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/aiplatform.user" \
-  --condition=None \
-  --quiet
-
-# 4. roles/compute.viewer: Required to view Compute Engine resource metadata
-echo "    Granting roles/compute.viewer..."
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/compute.viewer" \
   --condition=None \
   --quiet
 
@@ -111,16 +126,22 @@ echo "    [OK] IAM roles granted."
 echo ""
 echo "--> Step 3: Deploying ADK Agent to Agent Runtime..."
 
+ENV_VARS="ACTIVE_MCP_SERVICE=${ACTIVE_MCP_SERVICE},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_LOCATION=${REGION}"
+if [[ "$ACTIVE_MCP_SERVICE" == "secops" ]]; then
+  ENV_VARS="${ENV_VARS},SECOPS_MCP_URL=${SECOPS_MCP_URL:-https://us-chronicle.googleapis.com/mcp}"
+fi
+
 agents-cli deploy \
   --deployment-target="agent_runtime" \
   --project="$PROJECT_ID" \
   --region="$REGION" \
   --service-name="$SERVICE_NAME" \
   --service-account="$SA_EMAIL" \
-  --update-env-vars="ACTIVE_MCP_SERVICE=recommender,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_LOCATION=${REGION}" \
+  --update-env-vars="$ENV_VARS" \
   --no-confirm-project
 
 echo "    [OK] Deployed successfully to Agent Runtime."
+
 
 # ------------------------------------------------------------------------------
 # 5. Verify Cataloging in Google Cloud Agent Registry
@@ -143,11 +164,21 @@ echo "--> Step 5: Publishing to Gemini Enterprise App..."
 
 if [[ -n "${GEMINI_ENTERPRISE_APP_ID:-}" ]]; then
   echo "    Publishing agent to: $GEMINI_ENTERPRISE_APP_ID"
+  if [[ "$ACTIVE_MCP_SERVICE" == "secops" ]]; then
+    AGENT_DISPLAY_NAME="GCP SecOps Agent"
+    AGENT_DESC="Analyzes Chronicle SIEM security events, investigates alerts, and searches UDM events using Google's remote MCP server."
+    AGENT_TOOL_DESC="Investigates security alerts, queries UDM events, and manages Chronicle cases."
+  else
+    AGENT_DISPLAY_NAME="GCP Recommender Agent"
+    AGENT_DESC="Audits Google Cloud resources and discovers cost optimization recommendations using Google's remote MCP server."
+    AGENT_TOOL_DESC="Audits Google Cloud resources for idle persistent disks, underutilized VMs, and cost savings."
+  fi
+
   agents-cli publish gemini-enterprise \
     --gemini-enterprise-app-id="$GEMINI_ENTERPRISE_APP_ID" \
-    --display-name="GCP Recommender Agent" \
-    --description="Audits Google Cloud resources and discovers cost optimization recommendations using Google's remote MCP server." \
-    --tool-description="Audits Google Cloud resources for idle persistent disks, underutilized VMs, and cost savings." \
+    --display-name="$AGENT_DISPLAY_NAME" \
+    --description="$AGENT_DESC" \
+    --tool-description="$AGENT_TOOL_DESC" \
     --deployment-target="agent_runtime" \
     --registration-type="adk"
 

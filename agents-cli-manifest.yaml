@@ -1,7 +1,7 @@
-name: gcp-recommender-agent
+name: gcp-secops-agent
 agent_directory: gcp_agent
 base_template: adk
-region: global
+region: us-central1
 language: python
 acli_version: 1.5.0
 create_params:
