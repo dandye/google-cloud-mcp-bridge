@@ -32,6 +32,7 @@ MCP_CATALOG: Dict[str, str] = {
     "cloudbilling": "https://cloudbilling.googleapis.com/mcp",
     "run": "https://run.googleapis.com/mcp",
     "storage": "https://storage.googleapis.com/storage/mcp",
+    "secops": os.getenv("SECOPS_MCP_URL", "https://us-chronicle.googleapis.com/mcp"),
 }
 
 # Active service configuration

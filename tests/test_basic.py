@@ -21,10 +21,20 @@ def test_mcp_catalog():
         "cloudbilling",
         "run",
         "storage",
+        "secops",
     ]
     for service in expected_services:
         assert service in MCP_CATALOG
         assert MCP_CATALOG[service].startswith("https://")
+
+
+def test_skills_secops_exists():
+    """Verify default skills/secops/SKILL.md documentation exists."""
+    base_dir = Path(__file__).resolve().parent.parent
+    skill_file = base_dir / "skills" / "secops" / "SKILL.md"
+    assert skill_file.exists()
+    content = skill_file.read_text(encoding="utf-8")
+    assert "secops" in content.lower()
 
 
 def test_skills_recommender_exists():
