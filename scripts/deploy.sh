@@ -175,22 +175,31 @@ echo "--> Step 5: Publishing to Gemini Enterprise App..."
 if [[ -n "${GEMINI_ENTERPRISE_APP_ID:-}" ]]; then
   echo "    Publishing agent to: $GEMINI_ENTERPRISE_APP_ID"
   if [[ "$ACTIVE_MCP_SERVICE" == "secops" ]]; then
-    AGENT_DISPLAY_NAME="GCP SecOps Agent"
-    AGENT_DESC="Analyzes Chronicle SIEM security events, investigates alerts, and searches UDM events using Google's remote MCP server."
-    AGENT_TOOL_DESC="Investigates security alerts, queries UDM events, and manages Chronicle cases."
+    AGENT_DISPLAY_NAME="Google SecOps Agent"
+    AGENT_DESC="Autonomous security operations assistant powered by Chronicle Remote MCP, providing IOC enrichment, malware triage, atomic investigation runbooks, and incident response playbooks."
+    AGENT_TOOL_DESC="Investigates IOCs, domains, hashes, IPs, and users, triages alerts, queries Chronicle UDM events, and manages security cases."
   else
     AGENT_DISPLAY_NAME="GCP Recommender Agent"
     AGENT_DESC="Audits Google Cloud resources and discovers cost optimization recommendations using Google's remote MCP server."
     AGENT_TOOL_DESC="Audits Google Cloud resources for idle persistent disks, underutilized VMs, and cost savings."
   fi
 
-  agents-cli publish gemini-enterprise \
+  # Gemini Enterprise publishing requires an active end-user seat license.
+  # If GOOGLE_APPLICATION_CREDENTIALS is set to a service account (e.g. via direnv),
+  # unsetting it allows agents-cli to authenticate with user credentials.
+  PUBLISH_CMD=(env -u GOOGLE_APPLICATION_CREDENTIALS agents-cli publish gemini-enterprise \
     --gemini-enterprise-app-id="$GEMINI_ENTERPRISE_APP_ID" \
     --display-name="$AGENT_DISPLAY_NAME" \
     --description="$AGENT_DESC" \
     --tool-description="$AGENT_TOOL_DESC" \
     --deployment-target="agent_runtime" \
-    --registration-type="adk"
+    --registration-type="adk")
+
+  if [[ -n "${GEMINI_ENTERPRISE_AUTH_ID:-}" ]]; then
+    PUBLISH_CMD+=(--authorization-id="$GEMINI_ENTERPRISE_AUTH_ID")
+  fi
+
+  "${PUBLISH_CMD[@]}"
 
   echo "    [OK] Successfully published to Gemini Enterprise!"
 else
