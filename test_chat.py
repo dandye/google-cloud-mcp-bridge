@@ -65,7 +65,9 @@ async def main():
     except Exception as e:
         print(f"\n[ERROR] Runner execution failed: {e}")
         print("\nPrerequisites check:")
-        print("1. For Vertex AI: export GOOGLE_GENAI_USE_VERTEXAI=true and GOOGLE_CLOUD_PROJECT=your-project-id")
+        print(
+            "1. For Vertex AI: export GOOGLE_GENAI_USE_VERTEXAI=true and GOOGLE_CLOUD_PROJECT=your-project-id"
+        )
         print("2. For Gemini API: export GEMINI_API_KEY=your-api-key")
         print("3. Ensure 'gcloud auth application-default login' is active.")
 

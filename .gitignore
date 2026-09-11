@@ -1,9 +1,11 @@
-# Python artifacts
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+# Environment variables & secrets
+.env
+*.env
+!.env.example
+*.pem
+*.key
+credentials.json
+*service_account*.json
 
 # Virtual environments
 .venv/
@@ -11,17 +13,33 @@ env/
 venv/
 ENV/
 
-# Environment variables & secrets
-.env
-*.env
-
-# Operating system artifacts
-.DS_Store
-Thumbs.db
+# Python artifacts & caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.eggs/
 
 # ADK local development storage
 .adk/
 *.db
+
+# Operating system & Editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
 
 # Publication & Blog artifacts (not tracked in companion repo)
 blog_post.md
@@ -30,4 +48,3 @@ generate_medium_html.py
 
 # agents-cli deployment metadata (generated upon deployment)
 deployment_metadata.json
-

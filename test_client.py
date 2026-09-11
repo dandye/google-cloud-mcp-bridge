@@ -29,12 +29,20 @@ async def main():
             name = getattr(tool, "name", str(tool))
             desc = getattr(tool, "description", "No description provided.")
             print(f"  {idx}. {name}")
-            print(f"     Description: {desc[:100]}..." if len(desc) > 100 else f"     Description: {desc}")
+            print(
+                f"     Description: {desc[:100]}..."
+                if len(desc) > 100
+                else f"     Description: {desc}"
+            )
     except Exception as e:
         print(f"  [FAILED] Error discovering tools: {e}")
         print("\nPrerequisites check:")
-        print("1. Run 'gcloud auth application-default login' to refresh local credentials.")
-        print("2. Ensure your GCP identity has 'roles/mcp.toolUser' and 'roles/recommender.viewer'.")
+        print(
+            "1. Run 'gcloud auth application-default login' to refresh local credentials."
+        )
+        print(
+            "2. Ensure your GCP identity has 'roles/mcp.toolUser' and 'roles/recommender.viewer'."
+        )
         return
 
     print("\n" + "=" * 60)
