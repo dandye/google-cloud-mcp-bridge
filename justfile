@@ -53,7 +53,11 @@ install:
 # Quality & Testing
 # ------------------------------------------------------------------------------
 
-# Run unit tests with pytest
+# Run unit tests only (skipping live integration tests)
+unit-test *args="":
+    {{ python }} -m pytest -v -m "not integration" tests/ {{ args }}
+
+# Run all tests with pytest
 test *args="":
     {{ python }} -m pytest {{ args }}
 

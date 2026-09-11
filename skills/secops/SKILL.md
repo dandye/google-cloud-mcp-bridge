@@ -1,12 +1,25 @@
 ---
 name: gcp-secops-analyst
-metadata:
-  category: SecurityOperations
 description: >
   Investigates security events, searches Chronicle UDM logs, analyzes alerts,
   and inspects security cases using the Google Cloud Security Operations (SecOps)
   remote MCP server. Use when users ask to search UDM logs, investigate IOCs,
   review detections, check cases, or analyze alerts.
+role: Lead SOC Analyst & Orchestrator
+category: SecurityOperations
+tool_filter:
+  - list_rules
+  - get_rule
+  - get_rule_detections
+  - list_security_alerts
+  - get_security_alert
+  - summarize_entity
+  - search_entity
+  - get_ioc_matches
+  - list_cases
+  - get_case
+  - add_case_comment
+  - list_reference_lists
 ---
 
 # Google Cloud SecOps (Chronicle) Analyst Skill
