@@ -1,6 +1,7 @@
 """Integration test suite for deployed Vertex AI Agent Runtime SecOps agent."""
 
 import os
+import time
 from typing import Any
 import pytest
 import requests
@@ -78,3 +79,50 @@ def test_agent_engine_live_rule_listing(auth_headers, agent_endpoint):
     output = data.get("output", "")
     assert isinstance(output, str)
     assert "honeytoken" in output.lower() or "rule" in output.lower()
+
+
+@pytest.mark.integration
+def test_agent_engine_ioc_enrichment_query(auth_headers, agent_endpoint):
+    """Verify deployed Agent Engine evaluates an IOC indicator via Remote MCP."""
+    prompt = (
+        "Using Chronicle SecOps tools for project: dandye-0324-chronicle, "
+        "customer ID: 7e977ce4-f45d-43b2-aea0-52f8b66acd80, region: us, "
+        "perform IOC enrichment and evaluation on indicator 8.8.8.8. "
+        "Summarize the entity reputation, verdict, and findings."
+    )
+    payload: dict[str, Any] = {
+        "class_method": "query",
+        "input": {"message": prompt},
+    }
+
+    output = ""
+    for _ in range(3):
+        response = requests.post(
+            agent_endpoint, json=payload, headers=auth_headers, timeout=90
+        )
+        assert response.status_code == 200
+        data = response.json()
+        output = data.get("output", "")
+        if isinstance(output, str) and len(output) > 50:
+            break
+        time.sleep(3)
+
+    assert isinstance(output, str)
+    assert len(output) > 50
+    output_lower = output.lower()
+    assert any(
+        term in output_lower
+        for term in [
+            "summarize_entity",
+            "indicator",
+            "reputation",
+            "verdict",
+            "findings",
+            "asset",
+            "entity",
+            "google",
+            "dns",
+            "8.8.8.8",
+        ]
+    )
+    assert "8.8.8.8" in output

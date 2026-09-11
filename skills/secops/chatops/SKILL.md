@@ -47,19 +47,11 @@ This skill utilizes Chronicle case management and collaboration tools:
 - `close_case`: Finalizes and closes a case once remediation is verified.
 - `add_case_comment`: Appends structured investigation findings and analyst decisions to the case audit log.
 
-## 3. Step-by-Step Collaboration Protocol
+## 3. Step-by-Step Reasoning Protocol
 
-### Step 1: Human-in-the-Loop (HITL) Action Proposals
-Before executing any irreversible or high-risk action:
-- **Never execute autonomously**:
-  - Isolating or shutting down a production host.
-  - Disabling or locking user or service accounts.
-  - Blocking egress routes or applying firewall modifications.
-  - Closing a major security incident case.
-- **Propose to Human**:
-  - State the proposed action clearly.
-  - Present the supporting evidence (verdict, affected assets, threat intelligence signals).
-  - Explicitly ask for human approval before proceeding.
+### Step 1: Incident Assessment & Context Gathering
+- Determine current case priority, assigned responders, and existing investigative notes using `get_case`.
+- Review associated alerts and impacted assets to establish severity and scope.
 
 ### Step 2: Structured Analyst Notifications
 Format analyst alerts using a clean, standardized layout:
@@ -76,12 +68,24 @@ Format analyst alerts using a clean, standardized layout:
   - Call `add_case_comment` with a Markdown-formatted entry summarizing findings.
   - If closing an investigation, ensure all root causes and containment actions are recorded in the case before invoking `close_case`.
 
-## 4. Example Prompts
+## 4. Human-in-the-Loop (HITL) Safeguards
+Before executing any irreversible or high-risk action:
+- **Never execute autonomously**:
+  - Isolating or shutting down a production host.
+  - Disabling or locking user or service accounts.
+  - Blocking egress routes or applying firewall modifications.
+  - Closing a major security incident case.
+- **Propose to Human**:
+  - State the proposed action clearly.
+  - Present the supporting evidence (verdict, affected assets, threat intelligence signals).
+  - Explicitly ask for human approval before proceeding.
+
+## 5. Example Prompts
 - *"Draft an incident notification for the SOC channel regarding critical alert 99120."*
 - *"Add our investigation findings for suspicious IP 198.51.100.45 to Chronicle case CASE-4021."*
 - *"Request human confirmation before isolating host db-cluster-worker-02."*
 
-## 5. Output Schema
+## 6. Output Schema
 Deliver a structured ChatOps briefing:
 - **Header**: `### Incident Escalation: <Title>`
 - **Severity Badge**: `[CRITICAL | HIGH | MEDIUM | LOW]`

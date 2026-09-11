@@ -26,7 +26,10 @@ tool_filter:
 
 This skill instructs the agent on how to use the Google Cloud Security Operations (SecOps / Chronicle) remote MCP server tools (`https://us-chronicle.googleapis.com/mcp`) for security triage, UDM searches, alert analysis, and incident investigations.
 
-## Key Tools from Remote MCP Server
+## 1. Overview & Objective
+Investigates security events, searches Chronicle UDM logs, analyzes alerts, and inspects security cases using Google Cloud Security Operations (SecOps) remote MCP tools. This skill serves as the primary orchestrator for SecOps investigations across the enterprise environment.
+
+## 2. Remote MCP Tool Scope
 
 ### 1. Unified Data Model (UDM) & Log Search
 - `udm_search`: Executes a UDM search query across Chronicle logs.
@@ -50,9 +53,7 @@ This skill instructs the agent on how to use the Google Cloud Security Operation
 - `get_case`: Fetches complete case details, priority, and assigned analysts.
 - `create_case_comment`: Posts investigation notes and evidence into a case.
 
----
-
-## Workflow Guidelines
+## 3. Step-by-Step Reasoning Protocol
 
 1. **Scope and Customer Context**:
    - Ensure the query identifies the target project, customer ID, or time range (defaulting to the last 24-48 hours if unspecified).
@@ -63,3 +64,19 @@ This skill instructs the agent on how to use the Google Cloud Security Operation
    - Use `summarize_entity` to establish baseline behavior for the affected user or asset.
 4. **Actionable Findings**:
    - Summarize the attack timeline, involved entities, IOCs, and recommended containment steps.
+
+## 4. Human-in-the-Loop (HITL) Safeguards
+- **Autonomous Actions**: Read-only telemetry queries, UDM log searches, alert details retrieval, and entity summarization.
+- **Actions Requiring Human Authorization**: Any state-changing containment action, including host isolation, account revocation, perimeter block rules, or closing security cases.
+
+## 5. Example Prompts
+- "Search Chronicle UDM logs for failed login attempts against user admin@example.com over the last 24 hours."
+- "Investigate recent high-severity alerts in Chronicle and summarize affected assets and users."
+- "Check if indicator 198.51.100.25 has been seen in our environment and summarize its entity reputation."
+
+## 6. Output Schema & Reporting Structure
+Deliver a structured analysis report:
+- **Executive Summary**: High-level overview of findings and overall risk verdict.
+- **Involved Entities**: List of affected IP addresses, hostnames, user accounts, and hashes.
+- **Chronological Timeline**: Sequence of observed security events with UTC timestamps.
+- **Recommended Actions**: Containment, eradication, and post-incident verification steps with HITL authorization flags.
