@@ -13,6 +13,10 @@ env/
 venv/
 ENV/
 
+# Isolated gcloud state and direnv
+.gcloud/
+.envrc
+
 # Python artifacts & caches
 __pycache__/
 *.py[cod]
