@@ -8,8 +8,10 @@ No custom JSON-RPC client code is needed.
 import json
 import logging
 import os
+from pathlib import Path
 import time
 from typing import Any, Dict
+import yaml
 from fastapi import FastAPI, HTTPException, Request as FastAPIRequest
 from fastapi.responses import JSONResponse, StreamingResponse
 from google.adk.agents import Agent
@@ -77,26 +79,206 @@ def get_auth_headers(ctx=None) -> Dict[str, str]:
     return headers
 
 
-def load_instructions() -> str:
-    """Load skill instructions from SKILL.md."""
+def _parse_yaml_frontmatter(content: str) -> dict[str, Any]:
+    """Extract and parse YAML frontmatter from markdown content."""
+    stripped = content.strip()
+    if not stripped.startswith("---"):
+        return {}
+    parts = stripped.split("---", 2)
+    if len(parts) < 3:
+        return {}
+    try:
+        data = yaml.safe_load(parts[1])
+        return data if isinstance(data, dict) else {}
+    except Exception as err:
+        logger.warning(f"Failed to parse YAML frontmatter: {err}")
+        return {}
+
+
+def _get_skills_dir(service_name: str | None = None) -> Path | None:
+    """Resolve skills directory for a given service."""
+    svc = (service_name or SERVICE_NAME).lower()
     candidates = [
-        os.path.join(os.path.dirname(__file__), "skills", SERVICE_NAME, "SKILL.md"),
-        os.path.join(
-            os.path.dirname(__file__), "..", "skills", SERVICE_NAME, "SKILL.md"
-        ),
-        os.path.join(os.getcwd(), "skills", SERVICE_NAME, "SKILL.md"),
+        Path(__file__).resolve().parent.parent / "skills" / svc,
+        Path(__file__).resolve().parent / "skills" / svc,
+        Path.cwd() / "skills" / svc,
     ]
-    for skill_file in candidates:
-        if os.path.exists(skill_file):
-            with open(skill_file, "r", encoding="utf-8") as f:
-                return f.read()
-    return (
-        f"You are a helpful assistant with access to Google Cloud {SERVICE_NAME} tools."
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def get_secops_skill_tools(skill_name: str | None = None) -> list[str]:
+    """Read YAML frontmatter from skills/secops/ to collect tool_filter definitions.
+
+    If skill_name is given, returns that skill's tools. If None, aggregates
+    unique tools across all skills in skills/secops/ (or falls back to
+    MCP_TOOL_FILTER if set).
+    """
+    skills_dir = _get_skills_dir("secops")
+    if skills_dir is None or not skills_dir.exists():
+        raw_filter = os.getenv("MCP_TOOL_FILTER", "").strip()
+        if raw_filter:
+            return [t.strip() for t in raw_filter.split(",") if t.strip()]
+        return []
+
+    # Collect skill files: root SKILL.md first, then subdirectories, then TEMPLATE.md
+    main_skill = skills_dir / "SKILL.md"
+    skill_files: list[Path] = []
+    if main_skill.exists():
+        skill_files.append(main_skill)
+
+    sub_skills = sorted(
+        [p for p in skills_dir.rglob("SKILL.md") if p.is_file() and p != main_skill],
+        key=lambda p: str(p.relative_to(skills_dir)),
     )
+    skill_files.extend(sub_skills)
+
+    template_file = skills_dir / "TEMPLATE.md"
+    if template_file.exists():
+        skill_files.append(template_file)
+
+    if skill_name is not None:
+        target = skill_name.strip().lower().replace("_", "-")
+        for file_path in skill_files:
+            try:
+                content = file_path.read_text(encoding="utf-8")
+            except OSError as err:
+                logger.warning(f"Could not read skill file {file_path}: {err}")
+                continue
+            meta = _parse_yaml_frontmatter(content)
+            name = str(meta.get("name", "")).strip().lower().replace("_", "-")
+            parent_dir = file_path.parent.name.strip().lower().replace("_", "-")
+            stem = file_path.stem.strip().lower().replace("_", "-")
+            rel_dir = (
+                str(file_path.relative_to(skills_dir).parent)
+                .strip()
+                .lower()
+                .replace("_", "-")
+            )
+
+            if target in (name, parent_dir, stem, rel_dir):
+                tools = meta.get("tool_filter", [])
+                if isinstance(tools, list):
+                    return [str(t).strip() for t in tools if str(t).strip()]
+                return []
+        return []
+
+    # Aggregate across active SKILL.md files (excluding template)
+    aggregated_tools: list[str] = []
+    active_skill_files = [p for p in skill_files if p.name == "SKILL.md"]
+    for file_path in active_skill_files:
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError as err:
+            logger.warning(f"Could not read skill file {file_path}: {err}")
+            continue
+        meta = _parse_yaml_frontmatter(content)
+        tools = meta.get("tool_filter", [])
+        if isinstance(tools, list):
+            for tool in tools:
+                tool_name_str = str(tool).strip()
+                if tool_name_str and tool_name_str not in aggregated_tools:
+                    aggregated_tools.append(tool_name_str)
+
+    if not aggregated_tools:
+        raw_filter = os.getenv("MCP_TOOL_FILTER", "").strip()
+        if raw_filter:
+            return [t.strip() for t in raw_filter.split(",") if t.strip()]
+
+    return aggregated_tools
+
+
+def load_instructions(service_name: str | None = None) -> str:
+    """Load and aggregate skill instructions and catalog for the active service."""
+    svc = (service_name or SERVICE_NAME).lower()
+    skills_dir = _get_skills_dir(svc)
+    default_instruction = (
+        f"You are a helpful assistant with access to Google Cloud {svc} tools."
+    )
+    if skills_dir is None or not skills_dir.exists():
+        return default_instruction
+
+    main_skill = skills_dir / "SKILL.md"
+    main_content = ""
+    if main_skill.exists():
+        try:
+            main_content = main_skill.read_text(encoding="utf-8").strip()
+        except OSError as err:
+            logger.warning(f"Could not read main skill file {main_skill}: {err}")
+
+    if not main_content:
+        main_content = default_instruction
+
+    # Look for sub-skills in subdirectories
+    sub_skill_files = sorted(
+        [p for p in skills_dir.rglob("SKILL.md") if p.is_file() and p != main_skill],
+        key=lambda p: str(p.relative_to(skills_dir)),
+    )
+
+    if not sub_skill_files:
+        return main_content
+
+    # Index and aggregate sub-skills
+    catalog_lines = [
+        "",
+        "---",
+        "",
+        "## Specialized Sub-Skills Catalog",
+        "",
+        "The following specialized sub-skills and runbooks are available for domain workflows:",
+    ]
+    detailed_sections = []
+
+    for sub_file in sub_skill_files:
+        try:
+            content = sub_file.read_text(encoding="utf-8")
+        except OSError as err:
+            logger.warning(f"Could not read sub-skill file {sub_file}: {err}")
+            continue
+
+        meta = _parse_yaml_frontmatter(content)
+        name = meta.get("name", sub_file.parent.name)
+        role = meta.get("role", "")
+        category = meta.get("category", "")
+        description = meta.get("description", "").strip().rstrip(".")
+        tool_filter = meta.get("tool_filter", [])
+        tool_str = ", ".join(f"`{t}`" for t in tool_filter) if tool_filter else "None"
+
+        role_info = (
+            f" (Role: {role}, Category: {category})" if (role or category) else ""
+        )
+        desc_info = f": {description}" if description else ""
+        catalog_lines.append(
+            f"- **{name}**{role_info}{desc_info}. Scoped Tools: {tool_str}"
+        )
+
+        body = content.strip()
+        if body.startswith("---"):
+            parts = body.split("---", 2)
+            if len(parts) >= 3:
+                body = parts[2].strip()
+
+        detailed_sections.append(f"### Sub-Skill: {name}\n\n{body}")
+
+    detailed_block = ""
+    if detailed_sections:
+        detailed_block = (
+            "\n\n---\n\n## Detailed Sub-Skill Runbooks\n\n"
+            + "\n\n---\n\n".join(detailed_sections)
+        )
+
+    return main_content + "\n" + "\n".join(catalog_lines) + detailed_block
 
 
 _tool_filter_raw = os.getenv("MCP_TOOL_FILTER", "").strip()
-TOOL_FILTER = [t.strip() for t in _tool_filter_raw.split(",") if t.strip()] or None
+if _tool_filter_raw:
+    TOOL_FILTER = [t.strip() for t in _tool_filter_raw.split(",") if t.strip()] or None
+elif SERVICE_NAME == "secops":
+    TOOL_FILTER = get_secops_skill_tools() or None
+else:
+    TOOL_FILTER = None
 
 # Define the ADK Agent
 # ADK automatically handles tool discovery (tools/list), parameter mapping,
