@@ -42,11 +42,9 @@ User / App Prompt
   - Modular skill definitions (e.g., `skills/recommender/SKILL.md`) that guide agent reasoning when querying specific Google Cloud MCP tools.
 - `manage.py`:
   - Unified operational CLI for local execution, connection verification, server launching, and deployment.
-- `deploy.sh` & `agents-cli-manifest.yaml`:
-  - Automation scripts for containerizing and deploying to Google Cloud Agent Runtime, with optional registration in Google Cloud Agent Registry and Gemini Enterprise.
-- `external/`:
-  - Git submodules container for linked MCP servers, helper libraries, or test suites.
 - `scripts/`:
-  - Environment provisioning and maintenance scripts.
+  - Deployment automation (`scripts/deploy.sh`), local interactive test harnesses (`scripts/test_chat.py`, `scripts/test_client.py`), and environment scripts.
+- `agents-cli-manifest.yaml`:
+  - Configuration manifest for containerizing and deploying to Google Cloud Agent Runtime, with optional registration in Google Cloud Agent Registry and Gemini Enterprise.
 - `tests/`:
   - Pytest unit and integration test suite.

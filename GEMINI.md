@@ -30,10 +30,10 @@ This file provides guidance to Gemini Code Assist and AI pair programmers workin
 
 - `gcp_agent/agent.py`: Core ADK agent and FastAPI application exposing `/run` and `/stream` endpoints.
 - `skills/recommender/SKILL.md`: ADK skill instructions guiding the agent when querying Google Cloud Recommender.
-- `test_chat.py`: Local CLI runner using `InMemorySessionService` to test agent conversational prompts.
-- `test_client.py`: Verifies `McpToolset` endpoint connectivity and tool discovery.
+- `scripts/test_chat.py`: Local CLI runner using `InMemorySessionService` to test agent conversational prompts.
+- `scripts/test_client.py`: Verifies `McpToolset` endpoint connectivity and tool discovery.
 - `agents-cli-manifest.yaml`: Manifest for packaging and deploying to Google Cloud Agent Runtime.
-- `deploy.sh`: Shell script orchestrating Cloud Run / Agent Runtime deployment and Gemini Enterprise publication.
+- `scripts/deploy.sh`: Shell script orchestrating Cloud Run / Agent Runtime deployment and Gemini Enterprise publication.
 - `manage.py`: Unified Typer CLI for local execution, diagnostics, server hosting, and deployment.
 
 ## Common Commands
@@ -51,5 +51,5 @@ This file provides guidance to Gemini Code Assist and AI pair programmers workin
 | **Test MCP Tools** | `just client` | Connect to active Google Cloud MCP endpoint and list tools |
 | **Test Chat** | `just chat "prompt"` | Run conversational query through the ADK agent |
 | **Start Server** | `just serve` | Launch local FastAPI agent server on port 8080 |
-| **Deploy** | `just deploy` | Deploy to Google Cloud Agent Runtime via `deploy.sh` |
+| **Deploy** | `just deploy` | Deploy to Google Cloud Agent Runtime via `scripts/deploy.sh` |
 | **Clean** | `just clean` | Remove cache files, coverage reports, and build artifacts |

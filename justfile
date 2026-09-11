@@ -93,19 +93,19 @@ run *args="":
 
 # Run test chat runner with local prompt
 chat *args="":
-    {{ python }} test_chat.py {{ args }}
+    {{ python }} scripts/test_chat.py {{ args }}
 
 # Run test connection to verify remote MCP server discovery
 client:
-    {{ python }} test_client.py
+    {{ python }} scripts/test_client.py
 
 # Start agent FastAPI server locally with Uvicorn
 serve *args="":
     {{ python }} -m uvicorn gcp_agent.agent:app --host 0.0.0.0 --port 8080 {{ args }}
 
-# Deploy agent using deploy.sh script
-deploy:
-    ./deploy.sh
+# Deploy agent using scripts/deploy.sh
+deploy *args="":
+    ./scripts/deploy.sh {{ args }}
 
 # Clean build artifacts, bytecode, and test caches
 clean:

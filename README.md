@@ -75,9 +75,10 @@ google-cloud-mcp-bridge/
 ├── agents-cli-manifest.yaml # Project descriptor and deployment target metadata
 ├── Dockerfile            # Container image build for Agent Runtime
 ├── requirements.txt      # Python dependencies (google-adk[mcp,gcp])
-├── test_client.py        # Local script to verify ADK McpToolset discovery
-├── test_chat.py          # Local script to run conversational prompts via ADK Runner
-├── deploy.sh             # Script to deploy to Agent Runtime and publish via agents-cli
+├── scripts/
+│   ├── deploy.sh         # Script to deploy to Agent Runtime and publish via agents-cli
+│   ├── test_client.py    # Local script to verify ADK McpToolset discovery
+│   └── test_chat.py      # Local script to run conversational prompts via ADK Runner
 └── README.md             # Project documentation
 ```
 
@@ -114,8 +115,8 @@ agents-cli info
 >    - `gcp_agent/__init__.py` — Package entrypoint exposing `root_agent`.
 >    - `skills/recommender/SKILL.md` — Domain reasoning instructions for analyzing idle disks and cloud spend.
 >    - `requirements.txt` — Project dependencies (`google-adk[mcp,gcp]`).
->    - `test_client.py` & `test_chat.py` — Local validation scripts.
->    - `deploy.sh` — Deployment and Gemini Enterprise registration script.
+>    - `scripts/test_client.py` & `scripts/test_chat.py` — Local validation scripts.
+>    - `scripts/deploy.sh` — Deployment and Gemini Enterprise registration script.
 
 If starting a new agent from scratch, you can scaffold it in one command using `agents-cli scaffold create`:
 
@@ -175,7 +176,12 @@ gcloud services enable \
 ```bash
 gcloud auth application-default login
 
-python test_client.py
+# Via just:
+just client
+
+# Or via manage.py / python:
+python manage.py client
+python scripts/test_client.py
 ```
 
 #### Test B: Run Conversational Prompts via ADK Runner
@@ -183,8 +189,12 @@ python test_client.py
 # Enable Vertex AI for LLM reasoning with Application Default Credentials
 export GOOGLE_GENAI_USE_VERTEXAI=true
 
-# Run a test prompt
-python test_chat.py "What recommendations can you provide for persistent disks?"
+# Via just:
+just chat "What recommendations can you provide for persistent disks?"
+
+# Or via manage.py / python:
+python manage.py chat "What recommendations can you provide for persistent disks?"
+python scripts/test_chat.py "What recommendations can you provide for persistent disks?"
 ```
 
 #### Test C: Visual Browser Chat via `adk web`
@@ -199,13 +209,16 @@ adk web --port 8085 gcp_agent
 
 ### 6. Deploy to Agent Runtime & Publish to Gemini Enterprise
 
-#### Automated Deployment via Script
+#### Automated Deployment via `just deploy`
 ```bash
 export GOOGLE_CLOUD_REGION="us-central1"
 export GEMINI_ENTERPRISE_APP_ID="projects/PROJECT_NUMBER/locations/global/collections/default_collection/engines/APP_ID"
 
-chmod +x deploy.sh
-./deploy.sh
+# Primary interface:
+just deploy
+
+# Or via manage.py:
+python manage.py deploy
 ```
 
 #### Step-by-Step Deployment via `agents-cli`

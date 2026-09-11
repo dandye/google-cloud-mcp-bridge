@@ -71,7 +71,10 @@ def chat(
     ] = None,
 ) -> None:
     """Execute conversational prompt against the ADK agent via test_chat.py."""
-    cmd = [sys.executable, str(BASE_DIR / "test_chat.py")]
+    chat_script = BASE_DIR / "scripts" / "test_chat.py"
+    if not chat_script.exists():
+        chat_script = BASE_DIR / "test_chat.py"
+    cmd = [sys.executable, str(chat_script)]
     if prompt:
         cmd.append(prompt)
     subprocess.run(cmd, cwd=BASE_DIR, check=False)
@@ -80,7 +83,10 @@ def chat(
 @app.command("client")
 def client() -> None:
     """Verify ADK McpToolset connection and discover tools via test_client.py."""
-    cmd = [sys.executable, str(BASE_DIR / "test_client.py")]
+    client_script = BASE_DIR / "scripts" / "test_client.py"
+    if not client_script.exists():
+        client_script = BASE_DIR / "test_client.py"
+    cmd = [sys.executable, str(client_script)]
     subprocess.run(cmd, cwd=BASE_DIR, check=False)
 
 
@@ -101,10 +107,12 @@ def serve(
 
 @app.command("deploy")
 def deploy() -> None:
-    """Trigger agent deployment to Cloud Run / Agent Runtime via deploy.sh."""
-    deploy_script = BASE_DIR / "deploy.sh"
+    """Trigger agent deployment to Cloud Run / Agent Runtime via scripts/deploy.sh."""
+    deploy_script = BASE_DIR / "scripts" / "deploy.sh"
     if not deploy_script.exists():
-        console.print("[red]deploy.sh not found![/red]")
+        deploy_script = BASE_DIR / "deploy.sh"
+    if not deploy_script.exists():
+        console.print("[red]scripts/deploy.sh not found![/red]")
         raise typer.Exit(1)
     subprocess.run([str(deploy_script)], cwd=BASE_DIR, check=False)
 

@@ -16,7 +16,12 @@ Usage:
 
 import asyncio
 import os
+from pathlib import Path
 import sys
+
+# Ensure repository root is on sys.path when executed directly
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
